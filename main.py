@@ -60,7 +60,6 @@ async def on_message(msg):
     for el in msg.author.roles:
         if (el.name == 'Admins'):
             priority = True
-            await msg.channel.send(msg.content)
     if msg.content.startswith('$balance'):
         strq = msg.content
         if (len(strq) > 21):
