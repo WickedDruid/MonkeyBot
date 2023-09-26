@@ -1,4 +1,5 @@
 import discord
+import random
 from discord import app_commands
 from discord.ext import commands
 from tinydb import TinyDB, Query
@@ -100,6 +101,53 @@ async def transfer_money(interaction: discord.Interaction, target: str, amount: 
             await interaction.response.send_message(f"{amount} transferred to {target}")
         else:
             await interaction.response.send_message('Not enough currency')
+
+@bot.tree.command(name="create_bet")
+@app_commands.describe(team1="First team")
+@app_commands.describe(team2="Second team")
+async def create_bet(interaction: discord.Interaction, team1: str, team2: str):
+    i = 0
+    bet_id = -1
+    while 1:
+        if dbBets.search(User.ID == i):
+            i += 1
+        else:
+            bet_id = i
+            break
+    dbBets.insert({
+        'team1_totals': 0,
+        'team2_totals': 0,
+        'ID': bet_id,
+        'team1': team1,
+        'team2': team2
+    })
+    announcement = discord.Embed(
+        title=team1 + ' vs ' + team2,
+        description='To bet on this match, use the following ID: ' + str(bet_id),
+        color=0xBDE038
+    )
+    announcement.set_author(name=interaction.user.name, icon_url=interaction.user.avatar)
+    await interaction.response.send_message(embed=announcement)
+
+@bot.tree.command(name="close_bet")
+@app_commands.describe(id="ID")
+@app_commands.describe(winner="winner")
+async def close_bet(interaction: discord.Interaction, id: int, winner: str):
+    standing_bet = dbBets.get(User.ID == id)
+    if winner == standing_bet['team1']:
+        winning_pot = 'team1_totals'
+        losing_pot = 'team2_totals'
+    else:
+        winning_pot = 'team2_totals'
+        losing_pot = 'team1_totals'
+    for bet in dbBetsAmm.search(User.betID == id):
+        if winner == bet['team']:
+            percentage = bet['ammount'] / standing_bet[winning_pot]
+            winnings = percentage * standing_bet[losing_pot]
+            add_money(winnings, bet['userID'])
+    dbBetsAmm.remove(User.betID == id)
+    dbBets.remove(User.ID == id)
+    await interaction.response.send_message('Bet ' + str(id) + ' : ' + winner + ' won, the rewards have been sent')
 
 # async def on_message(msg):
 #     if msg.author == monkeydo.user:
