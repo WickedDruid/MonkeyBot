@@ -1,5 +1,6 @@
 import discord
 import random
+from datetime import datetime
 from discord import app_commands
 from discord.ext import commands
 from tinydb import TinyDB, Query
@@ -68,7 +69,7 @@ async def on_ready():
 async def balance(interaction: discord.Interaction):
     user = interaction.user.name
     log_file = open("log.txt", "a")
-    log_file.write(f"\nbalance from {user}")
+    log_file.write(f"\nbalance from {user}, {str(datetime.now())}")
     log_file.close()
     if dbUsers.search(User.userID == user):
         await interaction.response.send_message(f"Your accounts balance is {show(user)}.")
@@ -80,7 +81,7 @@ async def balance(interaction: discord.Interaction):
 @app_commands.describe(target="Target")
 async def look_up(interaction: discord.Interaction, target: str):
     log_file = open("log.txt", "a")
-    log_file.write(f"\nlookup from {interaction.user.name}, target: {target}")
+    log_file.write(f"\nlookup from {interaction.user.name}, target: {target}, {str(datetime.now())}")
     log_file.close()
     if dbUsers.search(User.userID == target):
         await interaction.response.send_message(f"This accounts balance is {show(target)}.")
@@ -93,7 +94,7 @@ async def look_up(interaction: discord.Interaction, target: str):
 @app_commands.describe(amount="Amount")
 async def add_money(interaction: discord.Interaction, target: str, amount: int):
     log_file = open("log.txt", "a")
-    log_file.write(f"\nadd from {interaction.user.name}, target: {target}, amount: {amount}")
+    log_file.write(f"\nadd from {interaction.user.name}, target: {target}, amount: {amount}, {str(datetime.now())}")
     log_file.close()
     if not priority(interaction.user.roles):
         await interaction.response.send_message('You do not have the privileges to use this command.')
@@ -110,7 +111,7 @@ async def add_money(interaction: discord.Interaction, target: str, amount: int):
 @app_commands.describe(amount="Amount")
 async def sub_money(interaction: discord.Interaction, target: str, amount: int):
     log_file = open("log.txt", "a")
-    log_file.write(f"\nsubtract from {interaction.user.name}, target: {target}, amount: {amount}")
+    log_file.write(f"\nsubtract from {interaction.user.name}, target: {target}, amount: {amount}, {str(datetime.now())}")
     log_file.close()
     if not priority(interaction.user.roles):
         await interaction.response.send_message('You do not have the privileges to use this command')
@@ -128,7 +129,7 @@ async def sub_money(interaction: discord.Interaction, target: str, amount: int):
 async def transfer_money(interaction: discord.Interaction, target: str, amount: int):
     Author = interaction.user.name
     log_file = open("log.txt", "a")
-    log_file.write(f"\ntransfer from {Author}, target: {target}, amount: {amount}")
+    log_file.write(f"\ntransfer from {Author}, target: {target}, amount: {amount}, {str(datetime.now())}")
     log_file.close()
     if not dbUsers.search(User.userID == Author):
         insert(Author)
@@ -148,7 +149,7 @@ async def transfer_money(interaction: discord.Interaction, target: str, amount: 
 @app_commands.describe(team2="Second team")
 async def create_bet(interaction: discord.Interaction, team1: str, team2: str):
     log_file = open("log.txt", "a")
-    log_file.write(f"\ncreate_bet from {interaction.user.name}, team1: {team1}, team2: {team2}")
+    log_file.write(f"\ncreate_bet from {interaction.user.name}, team1: {team1}, team2: {team2}, {str(datetime.now())}")
     log_file.close()
     if not priority(interaction.user.roles):
         await interaction.response.send_message('You do not have the privileges to use this command.')
@@ -181,7 +182,7 @@ async def create_bet(interaction: discord.Interaction, team1: str, team2: str):
 @app_commands.describe(winner="winner")
 async def close_bet(interaction: discord.Interaction, id: int, winner: str):
     log_file = open("log.txt", "a")
-    log_file.write(f"\nbalance from {interaction.user.name}, id: {id}, winner: {winner}")
+    log_file.write(f"\nbalance from {interaction.user.name}, id: {id}, winner: {winner}, {str(datetime.now())}")
     log_file.close()
     if not priority(interaction.user.roles):
         await interaction.response.send_message('You do not have the privileges to use this command.')
@@ -205,7 +206,7 @@ async def close_bet(interaction: discord.Interaction, id: int, winner: str):
 @bot.tree.command(name="clear_data")
 async def clear_data(interaction:discord.Interaction):
     log_file = open("log.txt", "a")
-    log_file.write(f"\nclear_data from {interaction.user.name}")
+    log_file.write(f"\nclear_data from {interaction.user.name}, {str(datetime.now())}")
     log_file.close()
     if interaction.user.name == 'wickedre':
         powershell()
@@ -214,4 +215,4 @@ async def clear_data(interaction:discord.Interaction):
         await interaction.response.send_message('Good try!')
 
 #replace token with bot token
-bot.run('ODI2MzgwNDAyNTIzNTA0NjQw.G6DmZ9.O66R57E46YlsVuylneua2lLiLJep0K4RG9G258')
+bot.run('token')

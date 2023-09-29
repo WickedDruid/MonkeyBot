@@ -1,3 +1,0 @@
-balance from wickedrebalance from wickedreadd from [<Role id=826383276888686602 name='@everyone'>, <Role id=872480159893168169 name='Admins'>], target: wickedre, amount: 2balance from wickedre\nlookup from wickedre, target: wickedrebalance from wickedrelookup from wickedre, target: wickedre
-balance from wickedre
-lookup from wickedre, target: wickedre
