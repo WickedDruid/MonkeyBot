@@ -1,10 +1,22 @@
 import discord
+import subprocess
+import asyncio
+import a2s
+import os
 import random
 from datetime import datetime
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from tinydb import TinyDB, Query
 from tinydb.operations import add, subtract
+from dotenv import load_dotenv
+
+PZ_IP = "127.0.0.1"
+PZ_PORT = 16261
+empty_minutes = 0
+
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
 
 dbUsers = TinyDB('dbUsers.json')
 dbBetsAmm = TinyDB('dbBetsAmm.json')
@@ -59,6 +71,7 @@ def priority(roles):
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} is ready")
+    check_server_status.start()
     try:
         sync = await bot.tree.sync()
         print(f"{bot.user.name} synced {len(sync)} commands")
@@ -214,5 +227,51 @@ async def clear_data(interaction:discord.Interaction):
     else:
         await interaction.response.send_message('Good try!')
 
+@bot.tree.command(name="startpz", description="Starts the Project Zomboid server")
+async def start_pz(interaction: discord.Interaction):
+    log_file = open("log.txt", "a")
+    log_file.write(f"\nstartpz from {interaction.user.name}, {str(datetime.now())}")
+    log_file.close()
+
+    if not priority(interaction.user.roles):
+        await interaction.response.send_message('You do not have the privileges to use this command')
+        return
+
+    check_screen = subprocess.run("screen -list | grep -q zomboid", shell=True)
+    if check_screen.returncode == 0:
+        await interaction.response.send_message("The server is already running or currently booting up")
+        return
+
+    await interaction.response.send_message("Starting Project Zomboid server! It should be online in a minute or two.")
+    
+    # Starts the server in a detached screen session named 'zomboid' under the pzserver user
+    cmd = 'screen -dmS zomboid /home/hosting/pzserver/start-server.sh'
+    subprocess.run(cmd, shell=True)
+
+@tasks.loop(minutes=1.0)
+async def check_server_status():
+    global empty_minutes
+    try:
+        # Query the server
+        info = a2s.info((PZ_IP, PZ_PORT), timeout=2.0)
+        
+        if info.player_count == 0:
+            empty_minutes += 1
+            print(f"Server is empty. Timer: {empty_minutes}/5")
+            
+            if empty_minutes >= 5:
+                print("Server empty for 5 minutes. Shutting down safely...")
+                # Sends the 'quit' command into the screen session to save the world safely
+                stop_cmd = 'screen -S zomboid -X stuff \'quit\\n\''
+                subprocess.run(stop_cmd, shell=True)
+                empty_minutes = 0 # Reset timer
+        else:
+            # If someone is playing, reset the timer
+            empty_minutes = 0 
+            
+    except Exception as e:
+        # If the query fails, the server is offline. Reset the timer.
+        empty_minutes = 0
+
 #replace token with bot token
-bot.run('token')
+bot.run(TOKEN)
