@@ -1,4 +1,4 @@
-#!/home/hosting/MonkeyBot/.venv/bin/python3
+#!/home/username/MonkeyBot/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

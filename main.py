@@ -2,6 +2,9 @@ import discord
 import subprocess
 import asyncio
 import a2s
+import re
+import sys
+import socket
 import os
 import random
 from datetime import datetime
@@ -11,9 +14,11 @@ from tinydb import TinyDB, Query
 from tinydb.operations import add, subtract
 from dotenv import load_dotenv
 
-PZ_IP = "127.0.0.1"
+SERVER_IP = "192.168.1.135"
+SERVER_MAC = "b4:2e:99:9e:db:7e"
+
+MC_PORT = 25565
 PZ_PORT = 16261
-empty_minutes = 0
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -67,11 +72,51 @@ def priority(roles):
     else:
         return False
 
+def is_host_online(ip: str, timeout_seconds: int = 1) -> bool:
+    command = ["ping", "-c", "2", "-W", str(timeout_seconds), ip]
+    result = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return result.returncode == 0
+
+def send_wol(mac_address: str, broadcast_ip: str = "255.255.255.255", port: int = 9) -> None:
+    cleaned_mac = re.sub(r"[:\.-]", "", mac_address)
+
+    if len(cleaned_mac) != 12:
+        raise ValueError(f"Invalid MAC address format")
+
+    mac_bytes = bytes.fromhex(cleaned_mac)
+    magic_packet = b"\xff" * 6 + mac_bytes * 16
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKNET, socket.SO_BROADCAST, 1)
+        sock.sendto(magic_packet, (broadcast_ip, port))
+
+def is_mc_open(ip: str, port: int, timeout_seconds: int = 2) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout_seconds)
+        result = sock.connect.ex((ip, port))
+        return result == 0
+
+def is_zomboid_open(ip: str, port: int, timeout_seconds: int = 2) -> bool:
+    payload = b'\xff\xff\xff\xffTSource Engine Query\x00'
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.settimeout(timeout_seconds)
+        try:
+            sock.sendto(payload, (ip, port))
+            data, _ = sock.recvfrom(1024)
+            return len(data) > 0
+        except socket.timeout:
+            return False
+        except Exception:
+            return False
 
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} is ready")
-    check_server_status.start()
     try:
         sync = await bot.tree.sync()
         print(f"{bot.user.name} synced {len(sync)} commands")
@@ -248,30 +293,23 @@ async def start_pz(interaction: discord.Interaction):
     cmd = 'screen -dmS zomboid /home/hosting/pzserver/start-server.sh'
     subprocess.run(cmd, shell=True)
 
-@tasks.loop(minutes=1.0)
-async def check_server_status():
-    global empty_minutes
-    try:
-        # Query the server
-        info = a2s.info((PZ_IP, PZ_PORT), timeout=2.0)
-        
-        if info.player_count == 0:
-            empty_minutes += 1
-            print(f"Server is empty. Timer: {empty_minutes}/5")
-            
-            if empty_minutes >= 5:
-                print("Server empty for 5 minutes. Shutting down safely...")
-                # Sends the 'quit' command into the screen session to save the world safely
-                stop_cmd = 'screen -S zomboid -X stuff \'quit\\n\''
-                subprocess.run(stop_cmd, shell=True)
-                empty_minutes = 0 # Reset timer
-        else:
-            # If someone is playing, reset the timer
-            empty_minutes = 0 
-            
-    except Exception as e:
-        # If the query fails, the server is offline. Reset the timer.
-        empty_minutes = 0
+@bot.tree.command(name="startmc", decription ="Starts the Craftoria Minecraft server")
+async def start_mc(interaction: discord.Interaction):
+    log_file = open("log.txt", "a")
+    log_file.write(f"\nstartmc from {interaction.user.name}, {str(datetime.now())}")
+    log_file.close()
 
-#replace token with bot token
+    if not priority(interaction.user.roles):
+        await interaction.response.send_message('You do not have the privileges to use this command')
+        return
+
+    if is_host_online(SERVER_IP) and is_mc_online(SERVER_IP, MC_PORT):
+        await interaction.response.send_message('The HomeLab is ONLINE. The MC Server is also ONLINE')
+    elif is_host_online(SERVER_IP):
+        await interaction.response.send_message('The HomeLab is ONLINE. Starting server now')
+
+    else:
+        await interaction.respone.send_message('Powering on the HomeLab and MC Server. Standby')
+
+
 bot.run(TOKEN)
